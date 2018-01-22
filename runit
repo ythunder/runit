@@ -1,0 +1,133 @@
+#!/bin/bash
+
+declare -a env_array
+declare -a proc_name
+declare -a proc_command
+declare -a proc_color
+
+proc_name=("web")
+proc_command=("ls -ls")
+proc_color=("\033[31m" "\E[32m" "\E[34m" "\E[35m" "\E[37m")
+
+RUNIT_VERSION="1.0"
+
+# ERROR
+NOTEXIST_ENV=4000
+NOTEXIST_PROC=4001
+
+
+PROC_FILE="Procfile"
+ENV_FILE=".env"
+DEFAULT_PORT="8080"
+DATE_FORMAT='+%Y-%m-%d|%H:%M:%S'
+
+function usage() {
+    echo "Usage: runit [-c] [-f procfile|Procfile] [-e envfile|.env]"
+    echo "Runit Version: $RUNIT_VERSION"
+}
+
+# $1:name + command对应的下标  $2:进程id
+function log()
+{
+    date=`date +%H:%M:%S`
+
+    index="$1"
+    name="${proc_name["$index"]}"
+    command="${proc_command["$index"]}"
+    pid="$2"
+    str="$date"" ""$name"" | ""$command"" started with pid ""$2"
+    echo -e `echo "${proc_color[$index]}""$str""\033[0m"`
+}
+
+# -z:the value is empty
+# -n:string isnot empty
+# 接受参数若干
+function verify()
+{
+    until [ -z "$1" ]
+    do
+        case "$1" in
+            # 检测procfile文件
+            "-c")
+                echo "check profile success"
+            ;;
+
+            # 寻求帮助
+            "-h")
+                usage
+            ;;
+
+            # 环境变量提示参数
+            "-e")
+                echo "this is env"
+                shift
+                if [ -n "$1" ]
+                then
+                    ENV_FILE="$1"
+                    load_env_file
+                else
+                    usage
+                    exit "$NOTEXIST_ENV"
+                fi
+            ;;
+
+            # procfile提示参数
+            "-f")
+                echo "this is procfile"
+                shift
+                if [ -n "$1" ]
+                then
+                    PROCFILE="$1"
+                    run_procfile
+                else
+                    usage
+                    exit "$NOTEXIST_PROC"
+                fi
+            ;;
+            * )
+                echo "fault"
+            ;;
+        esac
+        shift
+    done
+}
+
+function run_command() {
+    :
+}
+
+function load_env_file() {
+
+    if [ -e "$envfile" ]
+    then
+        cat "$ENV_FILE" | while read line;do
+            if [[ -n "$line" ]] && [[ $line != \#* ]]
+            then
+                eval "$line"
+            fi
+        done
+    fi
+}
+
+function run_procfile() {
+
+    i=0
+    if [ -e "$PROC_FILE" ]
+    then
+        cat "$PROC_FILE" | while read line;do
+            if [[ -n "$line" ]] && [[ $line != \#* ]]
+            then
+                proc_name[i]=`echo ${line%:*}`
+                proc_command[i]=`echo ${line#*:}`
+                let i++
+            fi
+        done
+    fi
+}
+
+
+function main() {
+    :
+}
+
+main "$@"
