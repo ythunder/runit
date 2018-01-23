@@ -5,8 +5,8 @@ declare -a proc_name
 declare -a proc_command
 declare -a proc_color
 
-proc_name=("web")
-proc_command=("ls -ls")
+proc_name=()
+proc_command=()
 proc_color=("\033[31m" "\E[32m" "\E[34m" "\E[35m" "\E[37m")
 
 RUNIT_VERSION="1.0"
@@ -25,7 +25,6 @@ COMM_NUM=0
 
 function usage() {
     echo "Usage: runit [-c] [-f procfile|Procfile] [-e envfile|.env]"
-    echo "Runit Version: $RUNIT_VERSION"
 }
 
 # $1:name + command对应的下标  $2:进程id
@@ -52,7 +51,7 @@ function verify()
         case "$1" in
             # 检测procfile文件
             "-c")
-                echo "check profile success"
+                #echo "check profile success"
             ;;
 
             # 寻求帮助
@@ -62,7 +61,6 @@ function verify()
 
             # 环境变量提示参数
             "-e")
-                echo "this is env"
                 shift
                 if [ -n "$1" ]
                 then
@@ -76,11 +74,10 @@ function verify()
 
             # procfile提示参数
             "-f")
-                echo "this is procfile"
                 shift
                 if [ -n "$1" ]
                 then
-                    PROCFILE="$1"
+                    PROC_FILE="$1"
                     run_procfile
                 else
                     usage
@@ -88,18 +85,19 @@ function verify()
                 fi
             ;;
             * )
-                echo "fault"
+                usage
             ;;
         esac
         shift
     done
+
 }
 
 
 function run_command() {
     for command in ${proc_command[@]}
     do
-        exec $command &
+        bash -c $command &
     done
 }
 
@@ -111,7 +109,8 @@ function load_env_file() {
         cat "$ENV_FILE" | while read line;do
             if [[ -n "$line" ]] && [[ $line != \#* ]]
             then
-                eval "$line"
+                echo $line
+                bash -c $line
             fi
         done
     fi
@@ -119,17 +118,17 @@ function load_env_file() {
 
 
 function run_procfile() {
-
     i=0
     if [ -e "$PROC_FILE" ];then
         cat "$PROC_FILE" | while read line;do
             if [[ -n "$line" ]] && [[ $line != \#* ]]
             then
-                proc_name[i]=`echo ${line%:*}`
+                proc_name[i]=`echo ${line%%:*}`
                 proc_command[i]=`echo ${line#*:}`
                 let i++
             fi
         done
+        let i--
         COMM_NUM="$i"
         handle_str
     fi
@@ -170,6 +169,9 @@ trap 'handle_SIG' SIGTERM
 
 function main() {
     verify "$@"
+
+    echo ${proc_name[*]}
+    echo ${proc_command[*]}
 
     if [[ $COMM_NUM != 0 ]];then
         run_command

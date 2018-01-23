@@ -9,10 +9,13 @@ before() {
     invalid_envfile="test/fixtures/invalid_env_file"
 }
 
+
+
 it_displays_usage_with_error_args() {
     usage=$(bash runit -x | head -n1)
     test "${usage}" = "${usage_result}"
 }
+
 
 it_displays_usage_with_hyphen_and_h() {
     usage=$(bash runit -h | head -n1)
