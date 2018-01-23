@@ -95,9 +95,11 @@ function verify()
 
 
 function run_command() {
-    for command in ${proc_command[@]}
+    i=0
+    while (( $i<$COMM_NUM ))
     do
-        bash -c $command &
+        bash -c "${proc_command[i]}" &
+        let i++
     done
 }
 
@@ -106,13 +108,12 @@ function load_env_file() {
 
     if [ -e "$ENV_FILE" ]
     then
-        cat "$ENV_FILE" | while read line;do
+        while read line;do
             if [[ -n "$line" ]] && [[ $line != \#* ]]
             then
-                echo $line
-                bash -c $line
+                eval export "$line"
             fi
-        done
+        done < ${ENV_FILE}
     fi
 }
 
@@ -120,18 +121,19 @@ function load_env_file() {
 function run_procfile() {
     i=0
     if [ -e "$PROC_FILE" ];then
-        cat "$PROC_FILE" | while read line;do
+        while read line;do
             if [[ -n "$line" ]] && [[ $line != \#* ]]
             then
                 proc_name[i]=`echo ${line%%:*}`
                 proc_command[i]=`echo ${line#*:}`
                 let i++
             fi
-        done
-        let i--
+        done < ${PROC_FILE}
+
         COMM_NUM="$i"
         handle_str
     fi
+
 }
 
 
@@ -169,9 +171,6 @@ trap 'handle_SIG' SIGTERM
 
 function main() {
     verify "$@"
-
-    echo ${proc_name[*]}
-    echo ${proc_command[*]}
 
     if [[ $COMM_NUM != 0 ]];then
         run_command
