@@ -3,6 +3,8 @@
 declare -a proc_name
 declare -a proc_command
 
+CHILD_SHELL=""
+
 proc_name=("web")
 proc_command=("ls" "ls -l")
 
@@ -14,14 +16,27 @@ function run_command()
     done
 }
 
-function handle_SIG()
+
+LS="ls"
+SLEEP="sleep 10"
+SLEEP1="sleep 5"
+function test()
 {
-    res=`jobs -b`
-    echo "$res"
+    exec $LS &
+    exec $SLEEP &
+
 }
 
-#trap 'handle_SIG' SIGINT
+function handle_SIG()
+{
+    CHILD_SHELL=`jobs -p`
+    for date in ${CHILD_SHELL[@]};do
+        kill $date
+        done
+}
+
+trap 'handle_SIG' SIGINT
 #trap 'handle_SIG' SIGTERM
 
-run_command
-handle_SIG
+test
+wait

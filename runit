@@ -20,6 +20,8 @@ PROC_FILE="Procfile"
 ENV_FILE=".env"
 DEFAULT_PORT="8080"
 DATE_FORMAT='+%Y-%m-%d|%H:%M:%S'
+CHILD_SHELL=""
+COMM_NUM=0
 
 function usage() {
     echo "Usage: runit [-c] [-f procfile|Procfile] [-e envfile|.env]"
@@ -42,6 +44,7 @@ function log()
 # -z:the value is empty
 # -n:string isnot empty
 # 接受参数若干
+
 function verify()
 {
     until [ -z "$1" ]
@@ -92,13 +95,18 @@ function verify()
     done
 }
 
+
 function run_command() {
-    :
+    for command in ${proc_command[@]}
+    do
+        exec $command &
+    done
 }
+
 
 function load_env_file() {
 
-    if [ -e "$envfile" ]
+    if [ -e "$ENV_FILE" ]
     then
         cat "$ENV_FILE" | while read line;do
             if [[ -n "$line" ]] && [[ $line != \#* ]]
@@ -109,11 +117,11 @@ function load_env_file() {
     fi
 }
 
+
 function run_procfile() {
 
     i=0
-    if [ -e "$PROC_FILE" ]
-    then
+    if [ -e "$PROC_FILE" ];then
         cat "$PROC_FILE" | while read line;do
             if [[ -n "$line" ]] && [[ $line != \#* ]]
             then
@@ -122,12 +130,51 @@ function run_procfile() {
                 let i++
             fi
         done
+        COMM_NUM="$i"
+        handle_str
     fi
 }
 
 
+function handle_SIG()
+{
+    CHILD_SHELL=`jobs -p`
+    for date in ${CHILD_SHELL[@]};do
+        kill $date
+        done
+}
+
+
+# 处理command字符串，必须接受全局变量NUMBER，即从PROCFILE中读得的命令数
+# 逐个处理，如果有&符号，去掉
+function handle_str()
+{
+    i=0
+    while (( $i<$COMM_NUM ))
+    do
+        temp_str="${proc_command[i]}"
+        if [[ "${temp_str:(-1)}" == "&" ]];then
+            comm_len=${#temp_str}
+            let comm_len--
+            proc_command[i]="${temp_str:0:$comm_len}"
+        fi
+        let i++
+    done
+}
+
+
+
+trap 'handle_SIG' SIGINT
+trap 'handle_SIG' SIGTERM
+
+
 function main() {
-    :
+    verify "$@"
+
+    if [[ $COMM_NUM != 0 ]];then
+        run_command
+    fi
+    wait
 }
 
 main "$@"

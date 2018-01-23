@@ -40,4 +40,30 @@ function get_procfile()
     fi
 }
 
-get_procfile
+
+
+declare -a proc_command
+proc_command=("ls" "ls -l &" "sleep" "fork &")
+NUMBER=4
+
+
+# 处理command字符串，必须接受全局变量NUMBER，即从PROCFILE中读得的命令数
+# 逐个处理，如果有&符号，去掉
+function handle_str()
+{
+    i=0
+    while (( $i<4 ))
+    do
+        temp_str="${proc_command[i]}"
+        if [[ "${temp_str:(-1)}" == "&" ]];then
+            comm_len=${#temp_str}
+            let comm_len--
+            proc_command[i]="${temp_str:0:$comm_len}"
+        fi
+        let i++
+    done
+}
+
+
+handle_str
+echo ${proc_command[*]}
