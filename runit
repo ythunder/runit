@@ -158,7 +158,6 @@ function run_procfile() {
                 else
                     proc_name[i]=`echo ${line%%:*}`
                     proc_command[i]=`echo ${line#*:}`
-
                     let i++
                 fi
             fi
