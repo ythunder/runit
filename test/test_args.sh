@@ -24,7 +24,7 @@ it_displays_usage_with_hyphen_and_h() {
 
 it_verifies_invalid_procfile_and_exit_with_err() {
     output=$(bash runit -c -f "${invalid_procfile}" -e "${simple_envfile}"; :)
-    grep -q "invalid_char" <(echo ${output})
+    grep -q "invalid_char" <(echo "${output}")
     grep -q "no_colon_command" <(echo "${output}")
     ! bash runit -c -f "${invalid_procfile}" -e "${simple_envfile}"
 }

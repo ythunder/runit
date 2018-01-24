@@ -16,12 +16,15 @@ NOTEXIST_ENV=4000
 NOTEXIST_PROC=4001
 
 
+VALID_ENV=0
 PROC_FILE="Procfile"
 ENV_FILE=".env"
 DEFAULT_PORT="8080"
 DATE_FORMAT='+%Y-%m-%d|%H:%M:%S'
 CHILD_SHELL=""
 COMM_NUM=0
+PORT=8080
+CHECK=0
 
 function usage() {
     echo "Usage: runit [-c] [-f procfile|Procfile] [-e envfile|.env]"
@@ -51,6 +54,7 @@ function verify()
         case "$1" in
             # 检测procfile文件
             "-c")
+                CHECK=1
                 #echo "check profile success"
             ;;
 
@@ -66,6 +70,9 @@ function verify()
                 then
                     ENV_FILE="$1"
                     load_env_file
+                    if [[ "$?" != 0 ]];then
+                        exit "$NOTEXIST_ENV"
+                    fi
                 else
                     usage
                     exit "$NOTEXIST_ENV"
@@ -99,6 +106,9 @@ function run_command() {
     while (( $i<$COMM_NUM ))
     do
         bash -c "${proc_command[i]}" &
+        if [[ ${proc_command[i]} == "echo \$PORT" ]];then
+            let PORT++
+        fi
         let i++
     done
 }
@@ -106,27 +116,51 @@ function run_command() {
 
 function load_env_file() {
 
-    if [ -e "$ENV_FILE" ]
-    then
+    if [ -e "$ENV_FILE" ];then
         while read line;do
             if [[ -n "$line" ]] && [[ $line != \#* ]]
             then
-                eval export "$line"
+                #r 为截取的key值，不得含有之外的字符
+                r=`echo "${line%=*}" | grep '[^0-9A-Za-z_]'`
+
+                # env_value中不得含有空格
+                env_value=${line#*=}
+                res=`echo "${line#*=}" | grep '[[:space:]]'`
+
+                if [[ -z "$env_value" ]] || [[ "$env_value" == "$line" ]] || [[ -n "$res" ]] || [[ -n "$r" ]];then
+                    echo "invaild env: $line"
+                else
+                    eval export "$line"
+                    if [[ "$?" == 0 ]];then
+                        VALID_ENV=1
+                    else
+                        echo "invaild env: $line"
+                    fi
+                fi
             fi
         done < ${ENV_FILE}
     fi
 }
 
 
+
+#用来计数有效的命令
 function run_procfile() {
     i=0
     if [ -e "$PROC_FILE" ];then
         while read line;do
             if [[ -n "$line" ]] && [[ $line != \#* ]]
             then
-                proc_name[i]=`echo ${line%%:*}`
-                proc_command[i]=`echo ${line#*:}`
-                let i++
+                res=`echo "${line%%:*}" | grep '[^0-9A-Za-z_]'`
+                if [[ ${line%%:*} == $line ]] || [[ -n "$res" ]]
+                then
+                    echo "error command: $line"
+                else
+                    proc_name[i]=`echo ${line%%:*}`
+                    proc_command[i]=`echo ${line#*:}`
+
+                    let i++
+                fi
             fi
         done < ${PROC_FILE}
 
@@ -134,6 +168,9 @@ function run_procfile() {
         handle_str
     fi
 
+    if [[ $i == 0 ]];then
+        exit $NOTEXIST_PROC
+    fi
 }
 
 
@@ -172,10 +209,19 @@ trap 'handle_SIG' SIGTERM
 function main() {
     verify "$@"
 
+    echo ${proc_name[*]}
+    echo ${proc_command[*]}
+
     if [[ $COMM_NUM != 0 ]];then
         run_command
     fi
+
     wait
+
+    if [[  $CHECK == 1 ]] && [[ $VALID_ENV == 0 ]];then
+        exit "$NOTEXIST_ENV"
+    fi
+
 }
 
 main "$@"
